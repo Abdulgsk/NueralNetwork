@@ -7,6 +7,7 @@ function MovieAnalyzer() {
   const [movieDetails, setMovieDetails] = useState(null);
   const [movieReviews, setMovieReviews] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [loadingExample, setLoadingExample] = useState(false);
   const [error, setError] = useState(null);
 
   const handleSubmit = async () => {
@@ -107,6 +108,9 @@ function MovieAnalyzer() {
   };
 
   const handleTryItOut = async () => {
+    setLoadingExample(true);
+    setError(null);
+    
     try {
       const response = await fetch("https://nueralnetwork-1.onrender.com/fetch_dummy_reviews", {
         method: "POST",
@@ -119,6 +123,9 @@ function MovieAnalyzer() {
       }
     } catch (error) {
       console.error("Failed to fetch dummy movie data:", error);
+      setError("Failed to fetch example data. Please try again.");
+    } finally {
+      setLoadingExample(false);
     }
   };
 
@@ -205,14 +212,13 @@ function MovieAnalyzer() {
                   placeholder="e.g., 'This movie was absolutely brilliant, a true cinematic gem!' or '#TheMatrix'"
                   value={reviewText}
                   onChange={(e) => setReviewText(e.target.value)}
-                  disabled={loading}
+                  disabled={loading || loadingExample}
                 />
                 {loading && (
                   <div className="absolute inset-0 bg-white/5 rounded-xl sm:rounded-2xl flex items-center justify-center backdrop-blur-sm">
                     <div className="flex items-center space-x-3">
                       <div className="animate-spin rounded-full h-6 sm:h-8 w-6 sm:w-8 border-t-2 border-blue-400"></div>
                       <span className="text-white/80 font-medium text-sm sm:text-base">
-                        Analyzing...
                       </span>
                     </div>
                   </div>
@@ -225,7 +231,7 @@ function MovieAnalyzer() {
               <button
                 onClick={handleSubmit}
                 className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 sm:py-4 rounded-xl sm:rounded-2xl text-lg sm:text-xl font-bold hover:from-blue-700 hover:to-purple-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
-                disabled={loading}
+                disabled={loading || loadingExample}
               >
                 {loading ? (
                   <span className="flex items-center justify-center space-x-2">
@@ -238,10 +244,17 @@ function MovieAnalyzer() {
               </button>
               <button
                 onClick={handleTryItOut}
-                className="sm:flex-none bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 sm:py-4 px-6 sm:px-8 rounded-xl sm:rounded-2xl text-lg sm:text-xl font-bold hover:from-purple-700 hover:to-pink-700 transition-all duration-300 disabled:opacity-50 shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
-                disabled={loading}
+                className="sm:flex-none bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 sm:py-4 px-6 sm:px-8 rounded-xl sm:rounded-2xl text-lg sm:text-xl font-bold hover:from-purple-700 hover:to-pink-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
+                disabled={loading || loadingExample}
               >
-                ✨ Try Example
+                {loadingExample ? (
+                  <span className="flex items-center justify-center space-x-2">
+                    <div className="animate-spin rounded-full h-4 sm:h-5 w-4 sm:w-5 border-t-2 border-white"></div>
+                    <span>Loading...</span>
+                  </span>
+                ) : (
+                  "✨ Try Example"
+                )}
               </button>
             </div>
           </div>
