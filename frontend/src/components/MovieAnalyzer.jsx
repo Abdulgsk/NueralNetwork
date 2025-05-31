@@ -24,7 +24,7 @@ function MovieAnalyzer() {
     setLoading(true);
 
     try {
-      const res = await fetch("http://127.0.0.1:5000/predict", {
+      const res = await fetch("https://nueralnetwork.onrender.com/predict", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: reviewText }),
@@ -108,7 +108,7 @@ function MovieAnalyzer() {
 
   const handleTryItOut = async () => {
     try {
-      const response = await fetch("http://127.0.0.1:5001/fetch_dummy_reviews", {
+      const response = await fetch("https://nueralnetwork-1.onrender.com/fetch_dummy_reviews", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query: "some movie" }), // optional here

@@ -47,7 +47,7 @@ else:
         pickle.dump(word_index, f)
 
 # This URL now points to your separate Gemini Flask API service
-GEMINI_API_URL = 'http://localhost:5001/fetch_movie_data'
+GEMINI_API_URL = 'https://nueralnetwork-1.onrender.com/fetch_movie_data'
 
 # Configure Gemini API key for general-purpose text generation in this app
 # Make sure to replace 'YOUR_GEMINI_API_KEY_HERE' with your actual API key
