@@ -12,6 +12,10 @@ import model  # your model.py with predict_from_reviews and load_model functions
 import requests  # For calling the Gemini API service
 from dotenv import load_dotenv
 import os
+import pickle
+from tensorflow.keras.datasets import imdb
+import numpy as np
+from scipy.sparse import csr_matrix
 
 # Load the .env file
 load_dotenv()
@@ -20,7 +24,27 @@ app = Flask(__name__)
 CORS(app)
 
 # Load your custom sentiment model only once at startup
-weights, biases = model.load_model()
+# Load model parameters once on startup
+try:
+    with open('model_params.pkl', 'rb') as f:
+        weights, biases = pickle.load(f)
+except FileNotFoundError:
+    logging.error("Model file 'model_params.pkl' not found")
+    raise FileNotFoundError("Model file is missing")
+except Exception as e:
+    logging.error(f"Failed to load model: {e}")
+    raise
+
+num_words_vocab = 5000
+import pickle
+word_index_file = 'imdb_word_index.pkl'
+if os.path.exists(word_index_file):
+    with open(word_index_file, 'rb') as f:
+        word_index = pickle.load(f)
+else:
+    word_index = imdb.get_word_index()
+    with open(word_index_file, 'wb') as f:
+        pickle.dump(word_index, f)
 
 # This URL now points to your separate Gemini Flask API service
 GEMINI_API_URL = 'http://localhost:5001/fetch_movie_data'
@@ -28,6 +52,9 @@ GEMINI_API_URL = 'http://localhost:5001/fetch_movie_data'
 # Configure Gemini API key for general-purpose text generation in this app
 # Make sure to replace 'YOUR_GEMINI_API_KEY_HERE' with your actual API key
 api_key = os.getenv("GEMINI_API_KEY")
+if not api_key:
+    logging.error("GEMINI_API_KEY not found in .env file")
+    raise ValueError("GEMINI_API_KEY is required")
 genai.configure(api_key=api_key)
 
 @app.route('/health')
@@ -57,6 +84,30 @@ def generate_reason():
     except Exception as e:
         logging.error(f"Error generating reason: {e}")
         return jsonify({'error': 'Failed to generate detailed reason'}), 500
+
+
+def vectorize_single_review(review):
+    words = review.lower().split()
+    indices = [word_index.get(w, 0) + 3 for w in words if w in word_index]
+    indices = [i for i in indices if 3 <= i < num_words_vocab]
+    if not indices:
+        return np.zeros((num_words_vocab,), dtype=np.float32)
+    data = np.ones(len(indices), dtype=np.float32)
+    row_indices = np.zeros(len(indices), dtype=np.int32)
+    col_indices = np.array(indices, dtype=np.int32)
+    return csr_matrix((data, (row_indices, col_indices)), shape=(1, num_words_vocab)).toarray()
+
+def relu(x): return np.maximum(0, x)
+def softmax(x):
+    e_x = np.exp(x - np.max(x, axis=1, keepdims=True))
+    return e_x / np.sum(e_x, axis=1, keepdims=True)
+
+def forward_pass(x, weights, biases):
+    a = x
+    for i in range(len(weights)):
+        z = np.dot(a, weights[i]) + biases[i]
+        a = softmax(z) if i == len(weights) - 1 else relu(z)
+    return a
 
 @app.route('/predict', methods=['POST'])
 def predict():

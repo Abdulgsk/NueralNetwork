@@ -1,4 +1,4 @@
-# gemini_movie_api.py
+# gemini.py
 import logging
 logging.basicConfig(
     level=logging.INFO,  # You can change to DEBUG for more detailed output
