@@ -25,7 +25,7 @@ function MovieAnalyzer() {
     setLoading(true);
 
     try {
-      const res = await fetch("https://nueralnetwork.onrender.com/predict", {
+      const res = await fetch("https://positive-playfulness-production.up.railway.app/predict", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: reviewText }),
