@@ -112,7 +112,7 @@ function MovieAnalyzer() {
     setError(null);
     
     try {
-      const response = await fetch("http://nueralnetwork-production.up.railway.app/fetch_dummy_reviews", {
+      const response = await fetch("https://nueralnetwork-production.up.railway.app/fetch_dummy_reviews", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query: "some movie" }), // optional here
