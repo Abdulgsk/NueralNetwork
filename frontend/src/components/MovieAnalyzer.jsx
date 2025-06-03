@@ -2,17 +2,63 @@ import React, { useState } from "react";
 
 function MovieAnalyzer() {
   const [reviewText, setReviewText] = useState("");
-  const [sentimentClassification, setSentimentClassification] = useState(null);
+  const [backendSentiment, setBackendSentiment] = useState(null); // This will store what the backend actually sends
+  const [frontendClassification, setFrontendClassification] = useState(null); // This will store your desired "old" classification
   const [descriptivePassage, setDescriptivePassage] = useState(null);
   const [movieDetails, setMovieDetails] = useState(null);
   const [movieReviews, setMovieReviews] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadingExample, setLoadingExample] = useState(false);
   const [error, setError] = useState(null);
-  const [showInfo, setShowInfo] = useState(false); // State to control info tooltip visibility
+  const [showInfo, setShowInfo] = useState(false);
+
+  // --- NEW FUNCTION: Map backend sentiment to old frontend classification ---
+  const mapBackendSentimentToOldClassification = (backendClassification) => {
+    if (!backendClassification) return "Analysis Pending"; // Or a suitable default
+
+    const lowerCaseClassification = backendClassification.toLowerCase();
+
+    if (
+      lowerCaseClassification.includes("overwhelmingly positive") ||
+      lowerCaseClassification.includes("highly positive") ||
+      lowerCaseClassification.includes("very positive")
+    ) {
+      return "Masterpiece";
+    }
+    if (
+      lowerCaseClassification.includes("positive") || // Covers "Moderately Positive", "Slightly Positive"
+      lowerCaseClassification.includes("generally positive")
+    ) {
+      return "Worth Watching"; // Changed from "Watchable" to "Worth Watching"
+    }
+    if (
+      lowerCaseClassification.includes("neutral") ||
+      lowerCaseClassification.includes("mixed feelings") ||
+      lowerCaseClassification.includes("no strong sentiment")
+    ) {
+      return "Mixed Feelings";
+    }
+    if (
+      lowerCaseClassification.includes("slightly negative") ||
+      lowerCaseClassification.includes("moderately negative") ||
+      lowerCaseClassification.includes("negative")
+    ) {
+      return "Disappointing";
+    }
+    if (
+      lowerCaseClassification.includes("highly negative") ||
+      lowerCaseClassification.includes("overwhelmingly negative") ||
+      lowerCaseClassification.includes("very negative")
+    ) {
+      return "Waste of Time";
+    }
+    return "Unknown Sentiment"; // Fallback
+  };
+  // --- END NEW FUNCTION ---
 
   const handleSubmit = async () => {
-    setSentimentClassification(null);
+    setBackendSentiment(null);
+    setFrontendClassification(null); // Reset
     setDescriptivePassage(null);
     setMovieDetails(null);
     setMovieReviews([]);
@@ -43,7 +89,11 @@ function MovieAnalyzer() {
       }
 
       const data = await res.json();
-      setSentimentClassification(data.sentiment_classification);
+      setBackendSentiment(data.sentiment_classification); // Store backend's original classification
+      // Set the frontend display classification based on mapping
+      setFrontendClassification(
+        mapBackendSentimentToOldClassification(data.sentiment_classification)
+      );
       setDescriptivePassage(data.descriptive_passage);
 
       if (data.details && Object.keys(data.details).length > 0) {
@@ -65,57 +115,47 @@ function MovieAnalyzer() {
     }
   };
 
-  // --- Reverted Sentiment Color and Gradient Mapping to OLD CLASSIFICATIONS ---
+  // --- Sentiment Color and Gradient Mapping using frontendClassification ---
   const getSentimentColor = (classification) => {
-    if (!classification) return "text-gray-800"; // Default for no classification
-    if (
-      classification.includes("Masterpiece") ||
-      classification.includes("Must-Watch") ||
-      classification.includes("Very Positive") ||
-      classification.includes("Highly Recommended") ||
-      classification.includes("Generally Positive") ||
-      classification.includes("Slightly Positive")
-    ) {
-      return "text-emerald-600";
+    if (!classification) return "text-gray-800";
+    if (classification === "Masterpiece") {
+      return "text-green-500";
     }
-    if (
-      classification.includes("Worst") ||
-      classification.includes("Disappointing") ||
-      classification.includes("Negative") ||
-      classification.includes("Flop") ||
-      classification.includes("Waste of Time") // Added explicit old classification
-    ) {
+    if (classification === "Worth Watching") {
+      return "text-emerald-500";
+    }
+    if (classification === "Mixed Feelings") {
+      return "text-amber-500";
+    }
+    if (classification === "Disappointing") {
+      return "text-orange-500";
+    }
+    if (classification === "Waste of Time") {
       return "text-red-500";
     }
-    // Default/Neutral/Mixed (e.g., "Mixed Feelings", "Watchable", "Okay")
-    return "text-amber-500";
+    return "text-gray-800"; // Default
   };
 
   const getSentimentGradient = (classification) => {
-    if (!classification) return "from-gray-500 to-gray-600"; // Default
-    if (
-      classification.includes("Masterpiece") ||
-      classification.includes("Must-Watch") ||
-      classification.includes("Very Positive") ||
-      classification.includes("Highly Recommended") ||
-      classification.includes("Generally Positive") ||
-      classification.includes("Slightly Positive")
-    ) {
-      return "from-emerald-500 to-green-600";
+    if (!classification) return "from-gray-500 to-gray-600";
+    if (classification === "Masterpiece") {
+      return "from-green-500 to-green-600";
     }
-    if (
-      classification.includes("Worst") ||
-      classification.includes("Disappointing") ||
-      classification.includes("Negative") ||
-      classification.includes("Flop") ||
-      classification.includes("Waste of Time") // Added explicit old classification
-    ) {
+    if (classification === "Worth Watching") {
+      return "from-emerald-500 to-emerald-600";
+    }
+    if (classification === "Mixed Feelings") {
+      return "from-amber-500 to-orange-600";
+    }
+    if (classification === "Disappointing") {
+      return "from-orange-500 to-red-600";
+    }
+    if (classification === "Waste of Time") {
       return "from-red-500 to-pink-600";
     }
-    // Default/Neutral/Mixed
-    return "from-amber-500 to-orange-600";
+    return "from-gray-500 to-gray-600"; // Default
   };
-  // --- End Reverted Sentiment Color and Gradient Mapping ---
+  // --- End Sentiment Color and Gradient Mapping ---
 
   const handleTryItOut = async () => {
     setLoadingExample(true);
@@ -127,12 +167,12 @@ function MovieAnalyzer() {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query: "some movie" }), // optional here
+          body: JSON.stringify({ query: "some movie" }),
         }
       );
       const data = await response.json();
       if (data.reviews && data.reviews.length > 0) {
-        setReviewText(data.reviews.join(" ")); // or pick one or display as list
+        setReviewText(data.reviews.join(" "));
       }
     } catch (error) {
       console.error("Failed to fetch dummy movie data:", error);
@@ -176,7 +216,7 @@ function MovieAnalyzer() {
             backdrop-filter: blur(20px);
             border: 1px solid rgba(255, 255, 255, 0.1);
           }
-          
+
           /* Fixed info-tooltip styles for all screen sizes */
           /* NOTE: These styles are now for the MODAL, not just a tooltip */
           .info-modal {
@@ -449,13 +489,13 @@ function MovieAnalyzer() {
           )}
 
           {/* Results Section - Responsive layout */}
-          {(sentimentClassification || descriptivePassage) && (
+          {(frontendClassification || descriptivePassage) && (
             <div className="animate-fadeInScale space-y-4 sm:space-y-6">
               <div className="glass-effect rounded-xl sm:rounded-2xl p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 shadow-xl">
                 <div className="flex items-center space-x-3 sm:space-x-4 mb-4 sm:mb-6">
                   <div
                     className={`w-10 sm:w-12 h-10 sm:h-12 bg-gradient-to-r ${getSentimentGradient(
-                      sentimentClassification
+                      frontendClassification
                     )} rounded-lg sm:rounded-xl flex items-center justify-center shadow-lg animate-pulse-custom`}
                   >
                     <span className="text-lg sm:text-xl">🎯</span>
@@ -471,13 +511,14 @@ function MovieAnalyzer() {
                 <div className="space-y-3 sm:space-y-4">
                   <div
                     className={`text-xl sm:text-2xl lg:text-3xl font-black ${getSentimentColor(
-                      sentimentClassification
+                      frontendClassification
                     )} flex items-center space-x-2 sm:space-x-3 flex-wrap`}
                   >
                     <span>🏆</span>
                     <span className="break-words">
-                      {sentimentClassification}
-                    </span>
+                      {frontendClassification}
+                    </span>{" "}
+                    {/* Display the mapped classification */}
                   </div>
                   <p className="text-white/90 text-base sm:text-lg leading-relaxed font-medium">
                     {descriptivePassage}
