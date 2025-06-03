@@ -9,6 +9,7 @@ function MovieAnalyzer() {
   const [loading, setLoading] = useState(false);
   const [loadingExample, setLoadingExample] = useState(false);
   const [error, setError] = useState(null);
+  const [showInfo, setShowInfo] = useState(false); // State to control info tooltip visibility
 
   const handleSubmit = async () => {
     setSentimentClassification(null);
@@ -25,11 +26,14 @@ function MovieAnalyzer() {
     setLoading(true);
 
     try {
-      const res = await fetch("https://positive-playfulness-production.up.railway.app/predict", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: reviewText }),
-      });
+      const res = await fetch(
+        "https://positive-playfulness-production.up.railway.app/predict",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: reviewText }),
+        }
+      );
 
       if (!res.ok) {
         const errorData = await res.json();
@@ -110,13 +114,16 @@ function MovieAnalyzer() {
   const handleTryItOut = async () => {
     setLoadingExample(true);
     setError(null);
-    
+
     try {
-      const response = await fetch("https://nueralnetwork-production.up.railway.app/fetch_dummy_reviews", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: "some movie" }), // optional here
-      });
+      const response = await fetch(
+        "https://nueralnetwork-production.up.railway.app/fetch_dummy_reviews",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: "some movie" }), // optional here
+        }
+      );
       const data = await response.json();
       if (data.reviews && data.reviews.length > 0) {
         setReviewText(data.reviews.join(" ")); // or pick one or display as list
@@ -149,17 +156,133 @@ function MovieAnalyzer() {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.8; }
           }
+          @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
           .animate-float { animation: float 6s ease-in-out infinite; }
           .animate-fadeInUp { animation: fadeInUp 0.6s ease-out; }
           .animate-fadeInScale { animation: fadeInScale 0.5s ease-out; }
           .animate-pulse-custom { animation: pulse-custom 2s ease-in-out infinite; }
+          .animate-slideIn { animation: slideIn 0.3s ease-out; }
           .glass-effect {
             background: rgba(255, 255, 255, 0.05);
             backdrop-filter: blur(20px);
             border: 1px solid rgba(255, 255, 255, 0.1);
           }
+          
+          /* Fixed info-tooltip styles for all screen sizes */
+          /* NOTE: These styles are now for the MODAL, not just a tooltip */
+          .info-modal {
+            position: fixed;
+            z-index: 50; /* Higher than the backdrop (z-40) */
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: calc(100vw - 2rem);
+            max-width: 28rem;
+            max-height: calc(100vh - 4rem);
+            overflow-y: auto;
+            box-sizing: border-box;
+            padding: 1rem;
+            background: rgba(45, 50, 60, 0.95); /* A slightly darker, more opaque background for the modal content */
+            border: 1px solid rgba(100, 116, 139, 0.5); /* Border matching your original tooltip */
+            border-radius: 0.75rem; /* rounded-xl */
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4); /* shadow-2xl */
+          }
+
+          /* Remove the arrow for better mobile experience */
+          .info-modal::after {
+            display: none;
+          }
+
+          /* Ensure proper scrolling on small screens */
+          @media (max-height: 600px) {
+            .info-modal {
+              max-height: calc(100vh - 2rem);
+              top: 1rem;
+              transform: translateX(-50%);
+            }
+          }
+
+          /* Extra small screens */
+          @media (max-width: 480px) {
+            .info-modal {
+              width: calc(100vw - 1rem);
+              padding: 0.75rem;
+            }
+          }
         `}
       </style>
+
+      {/* Conditional rendering for the overlay AND the modal itself */}
+      {showInfo && (
+        <>
+          {/* Full-screen overlay with blur and dimming */}
+          <div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" // This creates the blurred and dimmed background
+            onClick={() => setShowInfo(false)}
+          />
+
+          {/* Info Modal/Overlay (appears on top of the blurred backdrop) */}
+          <div className="info-modal animate-slideIn"> {/* Using the .info-modal class */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-cyan-400 font-bold text-sm sm:text-base flex items-center space-x-2">
+                  <span>💡</span>
+                  <span>How to Use CineScope</span>
+                </h4>
+                <button
+                  onClick={() => setShowInfo(false)}
+                  className="text-slate-400 hover:text-white transition-colors text-xl leading-none"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="space-y-3 text-white/90 text-xs sm:text-sm">
+                <div>
+                  <p className="font-semibold text-green-400 mb-1">📝 For Movie Reviews:</p>
+                  <p className="text-slate-300 leading-relaxed">
+                    Enter multiple reviews or a single detailed review to get sentiment analysis like "Masterpiece", "Worth Watching", "Waste of Time", etc.
+                  </p>
+                </div>
+
+                <div>
+                  <p className="font-semibold text-blue-400 mb-1">🎬 For Movie Search (use # prefix):</p>
+                  <div className="space-y-1 text-slate-300">
+                    <p className="mb-2">Get detailed movie info and related reviews:</p>
+                    <div className="bg-slate-700/50 rounded-lg p-2 space-y-1 font-mono text-xs">
+                      <p><span className="text-cyan-400">#</span>The Matrix</p>
+                      <p><span className="text-cyan-400">#</span>Inception Director Christopher Nolan</p>
+                      <p><span className="text-cyan-400">#</span>Avengers 2019 Marvel</p>
+                      <p><span className="text-cyan-400">#</span>Parasite Korean Bong Joon-ho</p>
+                      <p><span className="text-cyan-400">#</span>RRR Telugu 2022</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="font-semibold text-purple-400 mb-1">🎯 Include Specifics:</p>
+                  <p className="text-slate-300 text-xs leading-relaxed">
+                    Add <span className="text-yellow-400 font-medium">director, cast, year, language, genre</span> for better results
+                  </p>
+                </div>
+
+                <div className="bg-gradient-to-r from-green-500/20 to-blue-500/20 rounded-lg p-2 border border-green-500/30">
+                  <p className="text-green-300 font-semibold text-xs flex items-center space-x-1">
+                    <span>✨</span>
+                    <span>Pro Tip:</span>
+                  </p>
+                  <p className="text-green-200 text-xs mt-1">
+                    More details = Better analysis and movie recommendations!
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Floating Background Elements - Responsive positioning */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -202,14 +325,28 @@ function MovieAnalyzer() {
             style={{ animationDelay: "0.2s" }}
           >
             <div className="relative">
-              <label className="block text-white/90 text-base sm:text-lg font-semibold mb-2 sm:mb-3 px-2">
-                Enter your movie review or search for a movie (Movie Name should
-                start with "#").
-              </label>
+              <div className="flex items-center space-x-2 mb-2 sm:mb-3 px-2">
+                <label className="text-white/90 text-base sm:text-lg font-semibold">
+                  Enter your movie review or search for a movie (Movie Name should
+                  start with "#").
+                </label>
+
+                {/* Info Button */}
+                <div className="relative inline-block">
+                  <button
+                    className="w-6 sm:w-7 h-6 sm:h-7 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full flex items-center justify-center text-white text-xs sm:text-sm font-bold hover:from-cyan-600 hover:to-blue-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-110 active:scale-95 focus:outline-none focus:ring-2 focus:ring-cyan-400/50"
+                    onClick={() => setShowInfo(!showInfo)} // Toggle on click
+                    title="Click for detailed instructions"
+                  >
+                    i
+                  </button>
+                </div>
+              </div>
+
               <div className="relative">
                 <textarea
                   className="w-full h-32 sm:h-40 p-4 sm:p-6 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl sm:rounded-2xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-400 text-white text-base sm:text-lg resize-none transition-all duration-300 placeholder-white/50 shadow-inner"
-                  placeholder="e.g., 'This movie was absolutely brilliant, a true cinematic gem!' or '#TheMatrix'"
+                  placeholder="e.g., 'This movie was absolutely brilliant, a true cinematic gem!' or '#TheMatrix' or '#Inception Director Christopher Nolan'"
                   value={reviewText}
                   onChange={(e) => setReviewText(e.target.value)}
                   disabled={loading || loadingExample}
@@ -225,6 +362,7 @@ function MovieAnalyzer() {
                 )}
               </div>
             </div>
+
 
             {/* Action Buttons - Responsive layout */}
             <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4">
