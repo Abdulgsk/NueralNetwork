@@ -25,13 +25,13 @@ function MovieAnalyzer() {
     }
     if (
       lowerCaseClassification.includes("highly positive") ||
-      lowerCaseClassification.includes("very positive")||
+      lowerCaseClassification.includes("very positive") ||
       lowerCaseClassification.includes("positive")// Covers "Moderately Positive", "Slightly Positive"
     ) {
       return "Worth Watching"; // Changed from "Watchable" to "Worth Watching"
     }
     if (
-      lowerCaseClassification.includes("generally positive")||
+      lowerCaseClassification.includes("generally positive") ||
       lowerCaseClassification.includes("neutral") ||
       lowerCaseClassification.includes("mixed feelings") ||
       lowerCaseClassification.includes("no strong sentiment")
@@ -119,19 +119,19 @@ function MovieAnalyzer() {
   const getSentimentColor = (classification) => {
     if (!classification) return "text-gray-800";
     if (classification === "Masterpiece") {
-      return "text-green-500";
+      return "text-green-400"; // A vibrant green
     }
     if (classification === "Worth Watching") {
-      return "text-emerald-500";
+      return "text-lime-300"; // A lighter green
     }
     if (classification === "Mixed Feelings") {
-      return "text-amber-500";
+      return "text-amber-400"; // An orange
     }
     if (classification === "Disappointing") {
-      return "text-orange-500";
+      return "text-red-400"; // A lighter red
     }
     if (classification === "Waste of Time") {
-      return "text-red-500";
+      return "text-red-700"; // A darker red
     }
     return "text-gray-800"; // Default
   };
@@ -139,19 +139,19 @@ function MovieAnalyzer() {
   const getSentimentGradient = (classification) => {
     if (!classification) return "from-gray-500 to-gray-600";
     if (classification === "Masterpiece") {
-      return "from-green-500 to-green-600";
+      return "from-green-500 to-green-600"; // Green to slightly darker green
     }
     if (classification === "Worth Watching") {
-      return "from-emerald-500 to-emerald-600";
+      return "from-lime-400 to-lime-500"; // Light green to slightly darker light green
     }
     if (classification === "Mixed Feelings") {
-      return "from-amber-500 to-orange-600";
+      return "from-amber-400 to-orange-500"; // Orange to a slightly deeper orange
     }
     if (classification === "Disappointing") {
-      return "from-orange-500 to-red-600";
+      return "from-red-400 to-red-500"; // Light red to a slightly deeper red
     }
     if (classification === "Waste of Time") {
-      return "from-red-500 to-pink-600";
+      return "from-red-700 to-red-800"; // Dark red to even darker red
     }
     return "from-gray-500 to-gray-600"; // Default
   };
