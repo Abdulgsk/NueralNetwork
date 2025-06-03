@@ -65,8 +65,9 @@ function MovieAnalyzer() {
     }
   };
 
+  // --- Reverted Sentiment Color and Gradient Mapping to OLD CLASSIFICATIONS ---
   const getSentimentColor = (classification) => {
-    if (!classification) return "text-gray-800";
+    if (!classification) return "text-gray-800"; // Default for no classification
     if (
       classification.includes("Masterpiece") ||
       classification.includes("Must-Watch") ||
@@ -81,15 +82,17 @@ function MovieAnalyzer() {
       classification.includes("Worst") ||
       classification.includes("Disappointing") ||
       classification.includes("Negative") ||
-      classification.includes("Flop")
+      classification.includes("Flop") ||
+      classification.includes("Waste of Time") // Added explicit old classification
     ) {
       return "text-red-500";
     }
+    // Default/Neutral/Mixed (e.g., "Mixed Feelings", "Watchable", "Okay")
     return "text-amber-500";
   };
 
   const getSentimentGradient = (classification) => {
-    if (!classification) return "from-gray-500 to-gray-600";
+    if (!classification) return "from-gray-500 to-gray-600"; // Default
     if (
       classification.includes("Masterpiece") ||
       classification.includes("Must-Watch") ||
@@ -104,12 +107,15 @@ function MovieAnalyzer() {
       classification.includes("Worst") ||
       classification.includes("Disappointing") ||
       classification.includes("Negative") ||
-      classification.includes("Flop")
+      classification.includes("Flop") ||
+      classification.includes("Waste of Time") // Added explicit old classification
     ) {
       return "from-red-500 to-pink-600";
     }
+    // Default/Neutral/Mixed
     return "from-amber-500 to-orange-600";
   };
+  // --- End Reverted Sentiment Color and Gradient Mapping ---
 
   const handleTryItOut = async () => {
     setLoadingExample(true);
@@ -225,7 +231,9 @@ function MovieAnalyzer() {
           />
 
           {/* Info Modal/Overlay (appears on top of the blurred backdrop) */}
-          <div className="info-modal animate-slideIn"> {/* Using the .info-modal class */}
+          <div className="info-modal animate-slideIn">
+            {" "}
+            {/* Using the .info-modal class */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <h4 className="text-cyan-400 font-bold text-sm sm:text-base flex items-center space-x-2">
@@ -242,30 +250,56 @@ function MovieAnalyzer() {
 
               <div className="space-y-3 text-white/90 text-xs sm:text-sm">
                 <div>
-                  <p className="font-semibold text-green-400 mb-1">📝 For Movie Reviews:</p>
+                  <p className="font-semibold text-green-400 mb-1">
+                    📝 For Movie Reviews:
+                  </p>
                   <p className="text-slate-300 leading-relaxed">
-                    Enter multiple reviews or a single detailed review to get sentiment analysis like "Masterpiece", "Worth Watching", "Waste of Time", etc.
+                    Enter multiple reviews or a single detailed review to get
+                    sentiment analysis like "Masterpiece", "Worth Watching", "Waste of Time", etc.
                   </p>
                 </div>
 
                 <div>
-                  <p className="font-semibold text-blue-400 mb-1">🎬 For Movie Search (use # prefix):</p>
+                  <p className="font-semibold text-blue-400 mb-1">
+                    🎬 For Movie Search (use # prefix):
+                  </p>
                   <div className="space-y-1 text-slate-300">
-                    <p className="mb-2">Get detailed movie info and related reviews:</p>
+                    <p className="mb-2">
+                      Get detailed movie info and related reviews:
+                    </p>
                     <div className="bg-slate-700/50 rounded-lg p-2 space-y-1 font-mono text-xs">
-                      <p><span className="text-cyan-400">#</span>The Matrix</p>
-                      <p><span className="text-cyan-400">#</span>Inception Director Christopher Nolan</p>
-                      <p><span className="text-cyan-400">#</span>Avengers 2019 Marvel</p>
-                      <p><span className="text-cyan-400">#</span>Parasite Korean Bong Joon-ho</p>
-                      <p><span className="text-cyan-400">#</span>RRR Telugu 2022</p>
+                      <p>
+                        <span className="text-cyan-400">#</span>The Matrix
+                      </p>
+                      <p>
+                        <span className="text-cyan-400">#</span>Inception
+                        Director Christopher Nolan
+                      </p>
+                      <p>
+                        <span className="text-cyan-400">#</span>Avengers 2019
+                        Marvel
+                      </p>
+                      <p>
+                        <span className="text-cyan-400">#</span>Parasite Korean
+                        Bong Joon-ho
+                      </p>
+                      <p>
+                        <span className="text-cyan-400">#</span>RRR Telugu 2022
+                      </p>
                     </div>
                   </div>
                 </div>
 
                 <div>
-                  <p className="font-semibold text-purple-400 mb-1">🎯 Include Specifics:</p>
+                  <p className="font-semibold text-purple-400 mb-1">
+                    🎯 Include Specifics:
+                  </p>
                   <p className="text-slate-300 text-xs leading-relaxed">
-                    Add <span className="text-yellow-400 font-medium">director, cast, year, language, genre</span> for better results
+                    Add{" "}
+                    <span className="text-yellow-400 font-medium">
+                      director, cast, year, language, genre
+                    </span>{" "}
+                    for better results
                   </p>
                 </div>
 
@@ -327,8 +361,8 @@ function MovieAnalyzer() {
             <div className="relative">
               <div className="flex items-center space-x-2 mb-2 sm:mb-3 px-2">
                 <label className="text-white/90 text-base sm:text-lg font-semibold">
-                  Enter your movie review or search for a movie (Movie Name should
-                  start with "#").
+                  Enter your movie review or search for a movie (Movie Name
+                  should start with "#").
                 </label>
 
                 {/* Info Button */}
@@ -355,14 +389,12 @@ function MovieAnalyzer() {
                   <div className="absolute inset-0 bg-white/5 rounded-xl sm:rounded-2xl flex items-center justify-center backdrop-blur-sm">
                     <div className="flex items-center space-x-3">
                       <div className="animate-spin rounded-full h-6 sm:h-8 w-6 sm:w-8 border-t-2 border-blue-400"></div>
-                      <span className="text-white/80 font-medium text-sm sm:text-base">
-                      </span>
+                      <span className="text-white/80 font-medium text-sm sm:text-base"></span>
                     </div>
                   </div>
                 )}
               </div>
             </div>
-
 
             {/* Action Buttons - Responsive layout */}
             <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4">
