@@ -19,19 +19,19 @@ function MovieAnalyzer() {
     const lowerCaseClassification = backendClassification.toLowerCase();
 
     if (
-      lowerCaseClassification.includes("overwhelmingly positive") ||
-      lowerCaseClassification.includes("highly positive") ||
-      lowerCaseClassification.includes("very positive")
+      lowerCaseClassification.includes("overwhelmingly positive")
     ) {
       return "Masterpiece";
     }
     if (
-      lowerCaseClassification.includes("positive") || // Covers "Moderately Positive", "Slightly Positive"
-      lowerCaseClassification.includes("generally positive")
+      lowerCaseClassification.includes("highly positive") ||
+      lowerCaseClassification.includes("very positive")||
+      lowerCaseClassification.includes("positive")// Covers "Moderately Positive", "Slightly Positive"
     ) {
       return "Worth Watching"; // Changed from "Watchable" to "Worth Watching"
     }
     if (
+      lowerCaseClassification.includes("generally positive")||
       lowerCaseClassification.includes("neutral") ||
       lowerCaseClassification.includes("mixed feelings") ||
       lowerCaseClassification.includes("no strong sentiment")
