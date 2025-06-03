@@ -1,4 +1,3 @@
-# app.py
 import logging
 logging.basicConfig(
     level=logging.INFO,
@@ -8,25 +7,23 @@ logging.basicConfig(
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import google.generativeai as genai
-import model  # your model.py with predict_from_reviews and load_model functions
-import requests  # For calling the Gemini API service
+# import model  # <--- REMOVE THIS LINE
+import requests
 from dotenv import load_dotenv
 import os
 import pickle
-from tensorflow.keras.datasets import imdb
+from tensorflow.keras.datasets import imdb # Still needed for imdb.get_word_index()
 import numpy as np
 from scipy.sparse import csr_matrix
 
-# Load the .env file
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app)
+# Keep the explicit CORS configuration as discussed:
+CORS(app, resources={r"/*": {"origins": "https://nueral-network-frontend.vercel.app"}})
 
 # Load your custom sentiment model only once at startup
-# Load model parameters once on startup
 try:
-    # Updated filename to match your model.py
     with open('enhanced_model_params.pkl', 'rb') as f:
         weights, biases = pickle.load(f)
 except FileNotFoundError:
@@ -36,7 +33,6 @@ except Exception as e:
     logging.error(f"Failed to load model: {e}")
     raise
 
-# Updated vocabulary size to match your model.py
 num_words_vocab = 10000
 
 import pickle
@@ -49,11 +45,8 @@ else:
     with open(word_index_file, 'wb') as f:
         pickle.dump(word_index, f)
 
-# This URL now points to your separate Gemini Flask API service
 GEMINI_API_URL = 'https://nueralnetwork-production.up.railway.app/fetch_movie_data'
 
-# Configure Gemini API key for general-purpose text generation in this app
-# Make sure to replace 'YOUR_GEMINI_API_KEY_HERE' with your actual API key
 api_key = os.getenv("GEMINI_API_KEY")
 if not api_key:
     logging.error("GEMINI_API_KEY not found in .env file")
@@ -88,35 +81,30 @@ def generate_reason():
         logging.error(f"Error generating reason: {e}")
         return jsonify({'error': 'Failed to generate detailed reason'}), 500
 
-
+# These functions are already defined in your current app.py
+# Make sure they align with how your 'enhanced_model_params.pkl' was trained!
 def vectorize_single_review(review):
-    """
-    Updated vectorization function to match the enhanced model.py approach
-    """
     words = review.lower().split()
     indices = [word_index.get(word, 0) + 3 for word in words if word in word_index]
     indices = [i for i in indices if i < num_words_vocab and i >= 3]
-    
-    # Create weighted vector (matching model.py approach)
+
     if not indices:
         return np.zeros((num_words_vocab,), dtype=np.float32)
-    
+
     word_freq = {}
     for idx in indices:
         word_freq[idx] = word_freq.get(idx, 0) + 1
-    
+
     result = np.zeros((num_words_vocab,), dtype=np.float32)
     for idx, freq in word_freq.items():
         result[idx] = np.log(freq + 1)  # TF weighting
-    
-    # Normalize
+
     norm = np.linalg.norm(result)
     if norm > 0:
         result = result / norm
-    
+
     return result.reshape(1, -1)
 
-# Updated activation functions to match model.py
 def leaky_relu(x, alpha=0.01):
     return np.where(x > 0, x, alpha * x)
 
@@ -125,33 +113,26 @@ def softmax(x):
     return e_x / np.sum(e_x, axis=1, keepdims=True)
 
 def forward_pass(x, weights, biases):
-    """
-    Updated forward pass to match the enhanced model.py approach
-    """
     activations = [x]
-    
+
     for i in range(len(weights)):
         z = np.dot(activations[-1], weights[i]) + biases[i]
-        
-        if i == len(weights) - 1:  # Output layer
+
+        if i == len(weights) - 1:
             a = softmax(z)
-        else:  # Hidden layers
-            a = leaky_relu(z)  # Using Leaky ReLU to match model.py
-        
+        else:
+            a = leaky_relu(z)
         activations.append(a)
-    
-    return activations[-1]  # Return final output
+
+    return activations[-1]
 
 def interpret_sentiment_with_passage(review_vector, weights, biases):
-    """
-    Updated sentiment interpretation function to match model.py
-    """
     if review_vector.ndim == 1:
         review_vector = review_vector.reshape(1, -1)
 
     probabilities = forward_pass(review_vector, weights, biases)
     positive_prob = probabilities[0, 1]
-    confidence = max(positive_prob, 1 - positive_prob)  # Confidence in the prediction
+    confidence = max(positive_prob, 1 - positive_prob)
 
     if positive_prob >= 0.95:
         sentiment_classification = "Overwhelmingly Positive"
@@ -194,16 +175,14 @@ def predict():
 
         movie_details = None
         reviews = []
-        source_of_analysis = "User Provided Review"  # Default source
+        source_of_analysis = "User Provided Review"
 
-        # Check if input is a movie name (e.g., #TheMatrix)
         if user_input.startswith('#'):
             movie_name = user_input[1:].strip()
             if not movie_name:
                 return jsonify({'error': 'Movie name not provided after #'}), 400
 
             logging.info(f"Fetching reviews for movie: {movie_name} from Gemini API service at {GEMINI_API_URL}")
-            # Fetch reviews and details from the separate Gemini API service
             response = requests.post(GEMINI_API_URL, json={'query': movie_name}, timeout=10)
 
             if response.status_code != 200:
@@ -218,14 +197,11 @@ def predict():
             if not reviews or len(reviews) == 0:
                 reviews = ["No specific reviews found by Gemini for this movie."]
                 logging.error(f"No reviews returned by Gemini for '{movie_name}'. Proceeding with default review.")
-
         else:
-            # Use direct user review
             reviews = [user_input]
             movie_details = {"title": "User Provided Review", "year": "N/A", "genre": "N/A"}
             source_of_analysis = "Direct User Input"
 
-        # Ensure reviews are always a list of strings
         if not isinstance(reviews, list):
             reviews = [str(reviews)]
         reviews_for_model = [str(r) for r in reviews if r]
@@ -233,12 +209,12 @@ def predict():
         if not reviews_for_model:
             return jsonify({'error': 'No valid reviews to analyze after processing input.'}), 400
 
-        # Predict sentiment for the first review using updated functions
         logging.info(f"Vectorizing review: {reviews_for_model[0][:100]}...")
+        # CALL THE vectorize_single_review DEFINED IN THIS app.py
         first_review_vector = vectorize_single_review(reviews_for_model[0])
         logging.info(f"Review vector shape: {first_review_vector.shape}")
-        
-        # Use the updated interpretation function
+
+        # CALL THE interpret_sentiment_with_passage DEFINED IN THIS app.py
         sentiment_classification, descriptive_passage, positive_prob, confidence = interpret_sentiment_with_passage(
             first_review_vector, weights, biases
         )
@@ -249,8 +225,8 @@ def predict():
             'source': source_of_analysis,
             'details': movie_details,
             'reviews': reviews,
-            'positive_probability': float(positive_prob),  # Convert to float for JSON serialization
-            'confidence': float(confidence)  # Added confidence score
+            'positive_probability': float(positive_prob),
+            'confidence': float(confidence)
         })
 
     except requests.exceptions.ConnectionError:
