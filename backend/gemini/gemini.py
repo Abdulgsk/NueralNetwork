@@ -19,7 +19,7 @@ logging.basicConfig(
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app, resources={r"/dummy-reviews": {"origins": "http://localhost:5173"}})
+CORS(app)
 
 # Configure APIs
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
