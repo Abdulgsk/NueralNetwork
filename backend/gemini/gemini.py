@@ -1,4 +1,3 @@
-
 import logging
 import requests # Make sure requests is imported
 import json
@@ -11,11 +10,6 @@ from dotenv import load_dotenv
 import os
 from bs4 import BeautifulSoup
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='[%(asctime)s] %(levelname)s: %(message)s'
-)
-# Optimized logging - set to INFO for better debugging during development
 
 load_dotenv()
 
