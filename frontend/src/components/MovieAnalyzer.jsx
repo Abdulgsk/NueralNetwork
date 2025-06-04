@@ -70,7 +70,7 @@ function MovieAnalyzer() {
 
     try {
       const res = await fetch(
-        "https://positive-playfulness-production.up.railway.app/predict", // Ensure this matches your Flask backend port
+        "http://127.0.0.1:5000/predict", // Ensure this matches your Flask backend port
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -179,7 +179,7 @@ function MovieAnalyzer() {
     try {
   // Call the predict endpoint with a sample movie name
   const res = await fetch(
-    "https://nueralnetwork-production.up.railway.app/dummy-reviews", // Ensure this matches your Flask backend port
+    "http://127.0.0.1:5001/fetch_dummy_reviews", // Ensure this matches your Flask backend port
     {
       method: 'POST', // Assuming your /dummy-reviews endpoint expects a POST request
       headers: {

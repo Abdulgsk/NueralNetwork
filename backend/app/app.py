@@ -19,20 +19,8 @@ import re
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app)
 # Replace your current CORS config with this in both services:
-CORS(app, resources={
-    r"/*": {
-        "origins": [
-            "https://nueral-network-frontend.vercel.app",
-            "https://positive-playfulness-production.up.railway.app",
-            "https://nueralnetwork-production.up.railway.app"
-        ],
-        "methods": ["GET", "POST", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization"],
-        "supports_credentials": True
-    }
-})
+CORS(app)
 # Updated model loading to handle the improved model format
 try:
     # Try loading the improved model format first
@@ -77,7 +65,7 @@ else:
     with open(word_index_file, 'wb') as f:
         pickle.dump(word_index, f)
 
-GEMINI_API_URL = 'https://nueralnetwork-production.up.railway.app/fetch_movie_data'
+GEMINI_API_URL = 'http://127.0.0.1:5001/fetch_movie_data'
 
 api_key = os.getenv("GEMINI_API_KEY")
 if not api_key:
@@ -239,6 +227,7 @@ def home():
 
 @app.route('/predict', methods=['POST'])
 def predict():
+    print("Received request for sentiment analysis")
     try:
         data = request.get_json()
         user_input = data.get('text')

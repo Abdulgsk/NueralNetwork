@@ -19,16 +19,24 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app, resources={
     r"/*": {
-        "origins": [
-            "https://nueral-network-frontend.vercel.app",
-            "https://positive-playfulness-production.up.railway.app",
-            "https://nueralnetwork-production.up.railway.app"
-        ],
+        "origins": "*",  # Allow all origins
         "methods": ["GET", "POST", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization"],
         "supports_credentials": True
     }
 })
+# CORS(app, resources={
+#     r"/*": {
+#         "origins": [
+#             "https://nueral-network-frontend.vercel.app",
+#             "https://positive-playfulness-production.up.railway.app",
+#             "https://nueralnetwork-production.up.railway.app"
+#         ],
+#         "methods": ["GET", "POST", "OPTIONS"],
+#         "allow_headers": ["Content-Type", "Authorization"],
+#         "supports_credentials": True
+#     }
+# })
 
 # Configure APIs
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
@@ -226,17 +234,6 @@ class MovieDataFetcher:
         return None
 
 def find_movie_name(movie_query):
-    """
-    Attempts to find the correct spelling/official title of a movie
-    given a potentially misspelled or partial query, using Gemini AI.
-
-    Args:
-        movie_query (str): The user's input movie title (can be misspelled).
-
-    Returns:
-        str: The most likely correct movie title, or the original query
-            if a definitive correction can't be determined or an error occurs.
-    """
     # Placeholder for GEMINI_API_KEY. Replace with your actual key or load from environment.
     # For this function to work, genai.configure(api_key=YOUR_API_KEY) must be called elsewhere.
     if not GEMINI_API_KEY:
@@ -289,7 +286,7 @@ def find_movie_name(movie_query):
         logging.error(f"Error finding movie name with Gemini for query '{movie_query}': {str(e)}")
         return movie_query # Fallback: return the original query on error # Fallback: return the original query on error
 
-def generate_sample_reviews(movie_title, count=10):
+def generate_sample_reviews(count=10):
     """Generate sample reviews using Gemini AI"""
     if not GEMINI_API_KEY:
         return generate_static_reviews()
@@ -298,7 +295,7 @@ def generate_sample_reviews(movie_title, count=10):
         model = genai.GenerativeModel('gemini-1.5-flash')
         
         prompt = f"""
-        Generate {count} realistic movie reviews for "{movie_title}". 
+        Generate {count} realistic movie reviews for any movie. 
         Make them diverse in sentiment (positive, negative, neutral) and writing style.
         Each review should be 1-3 sentences long and feel authentic.
         Include a mix of detailed and brief reviews.
@@ -356,14 +353,14 @@ def scrape_imdb_reviews(imdb_id):
         max_retries = 3
         for attempt in range(max_retries):
             try:
-                response = requests.get(url, headers=headers, timeout=15)  # Increase timeout to 15
+                response = requests.get(url, headers=headers, timeout=20)  # Increase timeout to 15
                 break
             except requests.RequestException as e:
                 if attempt == max_retries - 1:
                     raise e
         time.sleep(2)
         logging.info(f"Attempting to scrape reviews from: {url}")
-        response = requests.get(url, headers=headers, timeout=10)
+        response = requests.get(url, headers=headers, timeout=20)
         response.raise_for_status()
 
         soup = BeautifulSoup(response.text, 'html.parser')
@@ -546,11 +543,9 @@ def fetch_movie_data():
 def fetch_dummy_reviews():
     """Generate dummy reviews for testing"""
     try:
-        data = request.get_json()
-        movie_title = data.get('title', 'Sample Movie')
-        count = data.get('count', 10)
+        count = 10
         
-        reviews = generate_sample_reviews(movie_title, count)
+        reviews = generate_sample_reviews(count)
         return jsonify({'reviews': reviews})
         
     except Exception as e:
@@ -559,4 +554,4 @@ def fetch_dummy_reviews():
 
 if __name__ == '__main__':
     port = int(os.getenv("PORT", 5001))
-    app.run(host="0.0.0.0", port=port, debug=False)
+    app.run(host="0.0.0.0", port=port, debug=True)
