@@ -21,6 +21,11 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app)
 
+CORS(app, resources={r"/*": {"origins": [
+    "https://nueral-network-frontend.vercel.app",
+    "https://positive-playfulness-production.up.railway.app" # Add this line if needed
+]}})
+
 # Configure APIs
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 TMDB_API_KEY = os.getenv("TMDB_API_KEY")
