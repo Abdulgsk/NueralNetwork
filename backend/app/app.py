@@ -65,7 +65,7 @@ else:
     with open(word_index_file, 'wb') as f:
         pickle.dump(word_index, f)
 
-GEMINI_API_URL = 'http://127.0.0.1:5001/fetch_movie_data'
+GEMINI_API_URL = 'https://astonishing-cat-production.up.railway.app/fetch_movie_data'
 
 api_key = os.getenv("GEMINI_API_KEY")
 if not api_key:
