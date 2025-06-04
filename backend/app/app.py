@@ -19,7 +19,10 @@ import re
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/*": {"origins": [
+    "https://nueral-network-frontend.vercel.app",
+    "https://nueralnetwork-production.up.railway.app" # Add this line if needed
+]}})
 
 # Updated model loading to handle the improved model format
 try:
