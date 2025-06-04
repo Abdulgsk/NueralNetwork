@@ -20,11 +20,19 @@ load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
-CORS(app, resources={r"/*": {"origins": [
-    "https://nueral-network-frontend.vercel.app",
-    "https://nueralnetwork-production.up.railway.app" # Add this line if needed
-]}})
-
+# Replace your current CORS config with this in both services:
+CORS(app, resources={
+    r"/*": {
+        "origins": [
+            "https://nueral-network-frontend.vercel.app",
+            "https://positive-playfulness-production.up.railway.app",
+            "https://nueralnetwork-production.up.railway.app"
+        ],
+        "methods": ["GET", "POST", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"],
+        "supports_credentials": True
+    }
+})
 # Updated model loading to handle the improved model format
 try:
     # Try loading the improved model format first
@@ -250,12 +258,13 @@ def predict():
 
             logging.info(f"Fetching reviews for movie: {movie_name} from Gemini API service at {GEMINI_API_URL}")
             try:
-                response = requests.post(GEMINI_API_URL, json={'query': movie_name}, timeout=15)
+                response = requests.post(GEMINI_API_URL, json={'query': movie_name}, timeout=10)
 
                 if response.status_code != 200:
                     logging.error(f"{response.status_code} - {response.text}")
                     return jsonify({'error': f' {response.text}'}), response.status_code
-
+                
+                response.raise_for_status()
                 gemini_data = response.json()
                 movie_details = gemini_data.get('details')
                 reviews = gemini_data.get('reviews')

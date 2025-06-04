@@ -1,3 +1,8 @@
+logging.basicConfig(
+    level=logging.INFO,
+    format='[%(asctime)s] %(levelname)s: %(message)s'
+)
+
 import logging
 import requests # Make sure requests is imported
 import json
@@ -11,10 +16,6 @@ import os
 from bs4 import BeautifulSoup
 
 # Optimized logging - set to INFO for better debugging during development
-logging.basicConfig(
-    level=logging.INFO,
-    format='[%(asctime)s] %(levelname)s: %(message)s'
-)
 
 load_dotenv()
 
@@ -23,12 +24,19 @@ app = Flask(__name__)
 CORS(app)
 # --- Corrected CORS Configuration ---
 # Remove the redundant CORS(app) line. Keep only the specific one.
-CORS(app, resources={r"/*": {"origins": [
-    "https://nueral-network-frontend.vercel.app",
-    "https://positive-playfulness-production.up.railway.app", # This service's own URL
-    "https://nueralnetwork-production.up.railway.app" # The other service's URL, if it needs to call this one
-]}})
-
+# Replace your current CORS config with this in both services:
+CORS(app, resources={
+    r"/*": {
+        "origins": [
+            "https://nueral-network-frontend.vercel.app",
+            "https://positive-playfulness-production.up.railway.app",
+            "https://nueralnetwork-production.up.railway.app"
+        ],
+        "methods": ["GET", "POST", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"],
+        "supports_credentials": True
+    }
+})
 # Configure APIs
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 TMDB_API_KEY = os.getenv("TMDB_API_KEY")
