@@ -19,10 +19,8 @@ logging.basicConfig(
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": [
-    "https://nueral-network-frontend.vercel.app",
-    "https://nueralnetwork-production.up.railway.app" # Add this line if needed
-]}})
+CORS(app)
+
 # Configure APIs
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 TMDB_API_KEY = os.getenv("TMDB_API_KEY")
