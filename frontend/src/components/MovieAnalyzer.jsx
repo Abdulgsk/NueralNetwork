@@ -181,7 +181,8 @@ function MovieAnalyzer() {
   const res = await fetch(
     "https://astonishing-cat-production.up.railway.app/fetch_dummy_reviews", // Ensure this matches your Flask backend port
     {
-      method: 'POST', // Assuming your /dummy-reviews endpoint expects a POST request
+      method: 'POST',
+      mode: 'cors', // Assuming your /dummy-reviews endpoint expects a POST request
       headers: {
         'Content-Type': 'application/json',
       },
