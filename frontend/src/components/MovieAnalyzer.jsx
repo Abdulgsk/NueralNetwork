@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import MovieDetailsCard from "./MovieDetailsCard";
+import MovieReviewsCard from "./MovieReviewsCard";
 
 function MovieAnalyzer() {
   const [reviewText, setReviewText] = useState("");
@@ -18,28 +20,24 @@ function MovieAnalyzer() {
 
     const lowerCaseClassification = backendClassification.toLowerCase();
 
-    if (
-      lowerCaseClassification.includes("overwhelmingly positive")
-    ) {
-      return "Masterpiece";
+    if (lowerCaseClassification.includes("overwhelmingly positive")) {
+      return "Cinematic Masterpiece"; // Covers "Masterpiece" and "Overwhelmingly Positive"
     }
     if (
       lowerCaseClassification.includes("highly positive") ||
-      lowerCaseClassification.includes("very positive") ||
-      lowerCaseClassification.includes("positive")// Covers "Moderately Positive", "Slightly Positive"
+      lowerCaseClassification.includes("positive") // Covers "Positive", "Moderately Positive"
     ) {
-      return "Worth Watching"; // Changed from "Watchable" to "Worth Watching"
+      return "Worth Watching";
     }
     if (
-      lowerCaseClassification.includes("generally positive") ||
+      lowerCaseClassification.includes("moderately positive") ||
       lowerCaseClassification.includes("neutral") ||
-      lowerCaseClassification.includes("mixed feelings") ||
-      lowerCaseClassification.includes("no strong sentiment")
+      lowerCaseClassification.includes("mixed")
     ) {
       return "Mixed Feelings";
     }
     if (
-      lowerCaseClassification.includes("slightly negative") ||
+      lowerCaseClassification.includes("no strong sentiment") ||
       lowerCaseClassification.includes("moderately negative") ||
       lowerCaseClassification.includes("negative")
     ) {
@@ -47,8 +45,7 @@ function MovieAnalyzer() {
     }
     if (
       lowerCaseClassification.includes("highly negative") ||
-      lowerCaseClassification.includes("overwhelmingly negative") ||
-      lowerCaseClassification.includes("very negative")
+      lowerCaseClassification.includes("overwhelmingly negative")
     ) {
       return "Waste of Time";
     }
@@ -73,7 +70,7 @@ function MovieAnalyzer() {
 
     try {
       const res = await fetch(
-        "https://positive-playfulness-production.up.railway.app/predict",
+        "https://nueralnetwork-production.up.railway.app/predict", // Ensure this matches your Flask backend port
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -102,14 +99,26 @@ function MovieAnalyzer() {
         setMovieDetails(null);
       }
 
-      if (data.reviews && data.reviews.length > 0) {
-        setMovieReviews(data.reviews);
+      // Ensure movieReviews is an array of objects with 'review_text'
+      if (
+        data.reviews &&
+        Array.isArray(data.reviews) &&
+        data.reviews.length > 0
+      ) {
+        // If reviews are already objects with review_text, use them directly
+        // Otherwise, assume they are strings and convert to objects
+        const formattedReviews = data.reviews.map((review) =>
+          typeof review === "string"
+            ? { review_text: review, author: "N/A", rating: "N/A", date: "N/A" }
+            : review
+        );
+        setMovieReviews(formattedReviews);
       } else {
         setMovieReviews([]);
       }
     } catch (err) {
       console.error("Error during sentiment analysis:", err);
-      setError(`Analysis failed: ${err.message}`);
+      setError(`Analysis failed: Enter the exact details or be more specific`);
     } finally {
       setLoading(false);
     }
@@ -118,7 +127,7 @@ function MovieAnalyzer() {
   // --- Sentiment Color and Gradient Mapping using frontendClassification ---
   const getSentimentColor = (classification) => {
     if (!classification) return "text-gray-800";
-    if (classification === "Masterpiece") {
+    if (classification === "Cinematic Masterpiece") {
       return "text-green-400"; // A vibrant green
     }
     if (classification === "Worth Watching") {
@@ -138,7 +147,7 @@ function MovieAnalyzer() {
 
   const getSentimentGradient = (classification) => {
     if (!classification) return "from-gray-500 to-gray-600";
-    if (classification === "Masterpiece") {
+    if (classification === "Cinematic Masterpiece") {
       return "from-green-500 to-green-600"; // Green to slightly darker green
     }
     if (classification === "Worth Watching") {
@@ -158,29 +167,68 @@ function MovieAnalyzer() {
   // --- End Sentiment Color and Gradient Mapping ---
 
   const handleTryItOut = async () => {
-    setLoadingExample(true);
-    setError(null);
+    setLoadingExample(true);
+    setError(null);
+    // Reset all previous results
+    setBackendSentiment(null);
+    setFrontendClassification(null);
+    setDescriptivePassage(null);
+    setMovieDetails(null);
+    setMovieReviews([]);
 
-    try {
-      const response = await fetch(
-        "https://nueralnetwork-production.up.railway.app/fetch_dummy_reviews",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query: "some movie" }),
-        }
-      );
-      const data = await response.json();
-      if (data.reviews && data.reviews.length > 0) {
-        setReviewText(data.reviews.join(" "));
-      }
-    } catch (error) {
-      console.error("Failed to fetch dummy movie data:", error);
-      setError("Failed to fetch example data. Please try again.");
-    } finally {
-      setLoadingExample(false);
+    try {
+  // Call the predict endpoint with a sample movie name
+  const res = await fetch(
+    "https://positive-playfulness-production.up.railway.app/dummy-reviews", // Ensure this matches your Flask backend port
+    {
+      method: 'POST', // Assuming your /dummy-reviews endpoint expects a POST request
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ movie_name: 'The Matrix' }), // Example movie query
+    }
+  );
+
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(
+      errorData.error || "Failed to get example sentiment from backend."
+    );
+  }
+
+ 
+  const data = await res.json();
+
+    // *** ADD THESE LINES TO PROCESS SENTIMENT AND DESCRIPTIVE PASSAGE FROM DUMMY DATA ***
+    setBackendSentiment(data.sentiment_classification);
+    setFrontendClassification(mapBackendSentimentToOldClassification(data.sentiment_classification));
+    setDescriptivePassage(data.descriptive_passage);
+    // You might also want to set movieDetails if the dummy-reviews endpoint provides them
+    if (data.details && Object.keys(data.details).length > 0) {
+        setMovieDetails(data.details);
+    } else {
+        setMovieDetails(null);
     }
-  };
+
+  // Populate the input field with the first review if available
+  if (data.reviews && data.reviews.length > 0) {
+    // Assuming reviews are objects with 'review_text' from backend
+    const formattedReviews = data.reviews.map((review) =>
+        typeof review === "string"
+            ? { review_text: review, author: "N/A", rating: "N/A", date: "N/A" }
+            : review
+    );
+    setMovieReviews(formattedReviews);
+  } else {
+    setReviewText("No online reviews found for this example movie."); // Fallback text
+  }
+} catch (err) {
+  console.error("Error during example sentiment analysis:", err);
+  setError(`Example analysis failed: ${err.message}`);
+} finally {
+  setLoadingExample(false);
+}
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
@@ -295,7 +343,8 @@ function MovieAnalyzer() {
                   </p>
                   <p className="text-slate-300 leading-relaxed">
                     Enter multiple reviews or a single detailed review to get
-                    sentiment analysis like "Masterpiece", "Worth Watching", "Waste of Time", etc.
+                    sentiment analysis like "Masterpiece", "Worth Watching",
+                    "Waste of Time", etc.
                   </p>
                 </div>
 
@@ -401,8 +450,7 @@ function MovieAnalyzer() {
             <div className="relative">
               <div className="flex items-center space-x-2 mb-2 sm:mb-3 px-2">
                 <label className="text-white/90 text-base sm:text-lg font-semibold">
-                  Enter your movie review or search for a movie (Movie Name
-                  should start with "#").
+                  Enter a review to analyze its sentiment or search movies using #Title (e.g., #Inception).
                 </label>
 
                 {/* Info Button */}
@@ -535,116 +583,14 @@ function MovieAnalyzer() {
             </div>
           )}
 
-          {/* Movie Details - Responsive grid */}
-          {movieDetails && movieDetails.title && (
-            <div className="animate-fadeInScale">
-              <div className="glass-effect rounded-xl sm:rounded-2xl p-4 sm:p-6 lg:p-8 shadow-xl">
-                <div className="flex items-center space-x-3 sm:space-x-4 mb-4 sm:mb-6">
-                  <div className="w-10 sm:w-12 h-10 sm:h-12 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg sm:rounded-xl flex items-center justify-center shadow-lg">
-                    <span className="text-lg sm:text-xl">🎭</span>
-                  </div>
-                  <div>
-                    <h3 className="text-xl sm:text-2xl font-bold text-white mb-1">
-                      Movie Details
-                    </h3>
-                    <div className="w-12 sm:w-16 h-1 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full"></div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-                  <div className="space-y-3 sm:space-y-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-3">
-                      <span className="text-blue-400 font-bold text-sm sm:text-base">
-                        Title:
-                      </span>
-                      <span className="text-white font-medium text-sm sm:text-base break-words">
-                        {movieDetails.title}
-                      </span>
-                    </div>
-                    <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-3">
-                      <span className="text-blue-400 font-bold text-sm sm:text-base">
-                        Year:
-                      </span>
-                      <span className="text-white font-medium text-sm sm:text-base">
-                        {movieDetails.year}
-                      </span>
-                    </div>
-                    <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-3">
-                      <span className="text-blue-400 font-bold text-sm sm:text-base">
-                        Genre:
-                      </span>
-                      <span className="text-white font-medium text-sm sm:text-base break-words">
-                        {movieDetails.genre}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="space-y-3 sm:space-y-4">
-                    {movieDetails.director && (
-                      <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-3">
-                        <span className="text-blue-400 font-bold text-sm sm:text-base">
-                          Director:
-                        </span>
-                        <span className="text-white font-medium text-sm sm:text-base break-words">
-                          {movieDetails.director}
-                        </span>
-                      </div>
-                    )}
-                    {movieDetails.cast && (
-                      <div className="flex flex-col sm:flex-row sm:items-start space-y-1 sm:space-y-0 sm:space-x-3">
-                        <span className="text-blue-400 font-bold text-sm sm:text-base flex-shrink-0">
-                          Cast:
-                        </span>
-                        <span className="text-white font-medium text-sm sm:text-base break-words">
-                          {movieDetails.cast}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Related Reviews - Responsive layout */}
-          {movieReviews.length > 0 && (
-            <div className="animate-fadeInScale">
-              <div className="glass-effect rounded-xl sm:rounded-2xl p-4 sm:p-6 lg:p-8 shadow-xl">
-                <div className="flex items-center space-x-3 sm:space-x-4 mb-4 sm:mb-6">
-                  <div className="w-10 sm:w-12 h-10 sm:h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg sm:rounded-xl flex items-center justify-center shadow-lg">
-                    <span className="text-lg sm:text-xl">💬</span>
-                  </div>
-                  <div>
-                    <h3 className="text-xl sm:text-2xl font-bold text-white mb-1">
-                      Related Reviews
-                    </h3>
-                    <div className="w-12 sm:w-16 h-1 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full"></div>
-                  </div>
-                </div>
-
-                <div className="space-y-3 sm:space-y-4">
-                  {movieReviews.map((review, index) => (
-                    <div
-                      key={index}
-                      className="bg-white/5 rounded-lg sm:rounded-xl p-3 sm:p-4 border border-white/10 hover:bg-white/10 transition-all duration-300"
-                    >
-                      <div className="flex items-start space-x-2 sm:space-x-3">
-                        <span className="text-purple-400 font-bold text-xs sm:text-sm flex-shrink-0">
-                          #{index + 1}
-                        </span>
-                        <p className="text-white/90 leading-relaxed text-sm sm:text-base break-words">
-                          {review}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
+          <MovieDetailsCard movieDetails={movieDetails} />
+          <MovieReviewsCard movieReviews={movieReviews} />
         </div>
       </div>
     </div>
   );
 }
 
-export default MovieAnalyzer;
+export default function App() {
+  return <MovieAnalyzer />;
+}

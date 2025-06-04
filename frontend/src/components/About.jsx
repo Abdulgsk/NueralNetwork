@@ -4,6 +4,7 @@ import AboutHeader from './About/AboutHeader';
 import FeatureCard from './About/FeatureCard';
 import HowItWorksCard from './About/HowItWorksCard';
 import NeuralNetworkDiagram from './About/NeuralNetworkDiagram';
+import TrainingMetricsCard from './About/TrainingMetricsCard';
 
 function AboutSection() {
   return (
@@ -55,6 +56,9 @@ function AboutSection() {
               gradientTo="pink-600"
               textColor="purple-700"
             />
+          <div className="mt-6">
+  <TrainingMetricsCard />
+</div>
           </div>
 
           {/* How It Works Section and Neural Network Diagram - Mobile Optimized */}
@@ -64,6 +68,7 @@ function AboutSection() {
             {/* Neural Network Diagram - Compact Version */}
             <NeuralNetworkDiagram />
           </div>
+
         </div>
       </div>
 

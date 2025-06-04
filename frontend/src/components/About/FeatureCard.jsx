@@ -27,7 +27,7 @@ function FeatureCard({ icon, title, description, details, gradientFrom, gradient
         </p>
         
         {details && (
-          <div className={`bg-gradient-to-r from-gray-50 to-blue-50 rounded-xl sm:rounded-2xl p-4 sm:p-6 border-l-4 ${detailBorderColor}`}>
+          <div className={`bg-gradient-to-r from-gray-50 to-blue-50 rounded-xl sm:rounded-2xl p-4 sm:p-6 border-l-2 border-blue-200 shadow-md`}>
             <h4 className="font-semibold text-gray-800 mb-3 text-base sm:text-lg">Key Implementations:</h4>
             <div className="space-y-2 sm:space-y-3 text-gray-700 text-sm sm:text-base">
               {details.map((item, index) => (

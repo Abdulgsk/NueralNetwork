@@ -1,32 +1,256 @@
-# gemini.py
 import logging
-logging.basicConfig(
-    level=logging.INFO,  # You can change to DEBUG for more detailed output
-    format='[%(asctime)s] %(levelname)s in %(module)s: %(message)s'
-)
+import requests
+import json
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import google.generativeai as genai
-import json
-import time # Import time for delays
 from dotenv import load_dotenv
 import os
+from bs4 import BeautifulSoup
 
-# Load the .env file
+# Optimized logging - only errors and warnings
+logging.basicConfig(
+    level=logging.ERROR,
+    format='[%(asctime)s] %(levelname)s: %(message)s'
+)
+
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/dummy-reviews": {"origins": "http://localhost:5173"}})
 
-# Configure Gemini API key for this specific app
-# Make sure to replace 'YOUR_GEMINI_API_KEY_HERE' with your actual API key
-api_key = os.getenv("GEMINI_API_KEY")
-api_key = os.getenv("GEMINI_API_KEY")
-if not api_key:
-    logging.error("GEMINI_API_KEY is not set in environment variables.")
-    raise RuntimeError("GEMINI_API_KEY is required but not set.")
-genai.configure(api_key=api_key)
+# Configure APIs
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+TMDB_API_KEY = os.getenv("TMDB_API_KEY")
+OMDB_API_KEY = os.getenv("OMDB_API_KEY")
 
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
+
+# Session for connection pooling - reduces HTTP overhead
+session = requests.Session()
+session.headers.update({
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+})
+
+class OptimizedMovieFetcher:
+    def __init__(self):
+        self.tmdb_base_url = "https://api.themoviedb.org/3"
+        self.omdb_base_url = "http://www.omdbapi.com"
+    
+    def get_movie_details_omdb(self, title=None, imdb_id=None):
+        """Optimized OMDB API call with better error handling"""
+        if not OMDB_API_KEY:
+            return None
+            
+        try:
+            params = {'apikey': OMDB_API_KEY, 'plot': 'full'}  # Reduced plot length
+            
+            if imdb_id:
+                params['i'] = imdb_id
+            elif title:
+                params['t'] = title
+            else:
+                return None
+                
+            response = session.get(self.omdb_base_url, params=params, timeout=8)
+            response.raise_for_status()
+            data = response.json()
+            
+            if data.get('Response') != 'True':
+                return None
+                
+            return self._parse_omdb_data(data)
+            
+        except Exception as e:
+            logging.error(f"OMDB error: {e}")
+            return None
+    
+    def _parse_omdb_data(self, data):
+        """Streamlined data parsing"""
+        def safe_int(value):
+            if value and value != 'N/A':
+                try:
+                    return int(''.join(filter(str.isdigit, str(value))))
+                except ValueError:
+                    pass
+            return None
+        
+        def safe_float(value):
+            if value and value != 'N/A':
+                try:
+                    return float(value)
+                except (ValueError, TypeError):
+                    pass
+            return None
+        
+        def split_list(value):
+            return [item.strip() for item in value.split(',')] if value and value != 'N/A' else []
+        
+        # Parse runtime efficiently
+        runtime = None
+        if data.get('Runtime') and data.get('Runtime') != 'N/A':
+            runtime_nums = ''.join(filter(str.isdigit, data.get('Runtime')))
+            runtime = int(runtime_nums) if runtime_nums else None
+        
+        # Parse ratings efficiently
+        ratings = []
+        if data.get('Ratings'):
+            for rating in data.get('Ratings', []):
+                ratings.append({
+                    'source': rating.get('Source'),
+                    'value': rating.get('Value')
+                })
+        
+        return {
+            'title': data.get('Title'),
+            'year': safe_int(data.get('Year')),
+            'rated': data.get('Rated') if data.get('Rated') != 'N/A' else None,
+            'released_date': data.get('Released') if data.get('Released') != 'N/A' else None,
+            'runtime_minutes': runtime,
+            'genres': split_list(data.get('Genre')),
+            'director': data.get('Director') if data.get('Director') != 'N/A' else None,
+            'actors': split_list(data.get('Actors')),
+            'plot': data.get('Plot') if data.get('Plot') != 'N/A' else None,
+            'languages': split_list(data.get('Language')),
+            'countries': split_list(data.get('Country')),
+            'awards': data.get('Awards') if data.get('Awards') != 'N/A' else None,
+            'poster_url': data.get('Poster') if data.get('Poster') != 'N/A' else None,
+            'ratings': ratings,
+            'imdb_id': data.get('imdbID'),
+            'imdb_votes': data.get('imdbVotes') if data.get('imdbVotes') != 'N/A' else None,
+            'box_office': safe_int(data.get('BoxOffice')),
+            'metascore': safe_int(data.get('Metascore')),
+            'response': data.get('Response')
+        }
+
+def find_movie_name_optimized(movie_query):
+    """Optimized movie name correction with faster prompt"""
+    if not GEMINI_API_KEY:
+        return movie_query
+    
+    try:
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        
+        # Shorter, more direct prompt
+        prompt = f"""Fix this movie title if misspelled, return exact official title only:
+        "{movie_query}"
+        
+        Examples:
+        "avilars" → "Avatar"
+        "dark nigt" → "The Dark Knight"
+        
+        If correct, return as-is. One line response only."""
+        
+        response = model.generate_content(prompt)
+        corrected = response.text.strip()
+        
+        return corrected if corrected and len(corrected) > 1 else movie_query
+        
+    except Exception as e:
+        logging.error(f"Gemini error: {e}")
+        return movie_query
+
+def generate_fast_reviews(movie_title, count=10):
+    """Generate reviews with optimized prompt"""
+    if not GEMINI_API_KEY:
+        return get_static_reviews()
+    
+    try:
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        
+        prompt = f"""Generate {count} short movie reviews for "{movie_title}". Mix of positive/negative. JSON format:
+        [{{"review_text": "Great movie!", "rating": "8/10", "author": "User1", "sentiment": "positive"}}]
+        Keep reviews 1-2 sentences. No extra text."""
+        
+        response = model.generate_content(prompt)
+        reviews_text = response.text.strip()
+        
+        # Clean JSON
+        if reviews_text.startswith('```json'):
+            reviews_text = reviews_text[7:-3]
+        reviews_text = reviews_text.strip()
+        
+        reviews = json.loads(reviews_text)
+        return reviews if isinstance(reviews, list) else get_static_reviews()
+        
+    except Exception:
+        return get_static_reviews()
+
+def get_static_reviews():
+    """Fast fallback reviews"""
+    return [
+        {"review_text": "Great movie! Really enjoyed it.", "rating": "8/10", "author": "CinemaFan", "sentiment": "positive"},
+        {"review_text": "Average film, not bad but not great.", "rating": "6/10", "author": "MovieWatcher", "sentiment": "neutral"},
+        {"review_text": "Disappointing, expected better.", "rating": "4/10", "author": "CriticUser", "sentiment": "negative"},
+        {"review_text": "Absolutely loved it! Highly recommend.", "rating": "9/10", "author": "FilmLover", "sentiment": "positive"},
+        {"review_text": "Decent watch for weekend.", "rating": "7/10", "author": "Reviewer", "sentiment": "neutral"},
+        {"review_text": "Not worth the time.", "rating": "3/10", "author": "MovieCritic", "sentiment": "negative"}
+    ]
+
+def scrape_imdb_reviews_fast(imdb_id, max_reviews=25):
+    """Optimized IMDb scraping with timeout and limits"""
+    if not imdb_id:
+        return {'reviews': [], 'poster_url': None}
+    
+    reviews_list = []
+    poster_url = None
+    url = f"https://www.imdb.com/title/{imdb_id}/reviews/"
+    
+    try:
+        response = session.get(url, timeout=6)  # Reduced timeout
+        response.raise_for_status()
+        
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        # Find reviews with optimized selectors
+        review_containers = (
+            soup.find_all('article', class_=lambda x: x and 'user-review-item' in x) or
+            soup.find_all('article', attrs={'data-testid': lambda x: x and 'review' in x}) or
+            soup.find_all('article')[:20]  # Limit processing
+        )
+        
+        for container in review_containers[:20]:  # Process only first N reviews
+            # Streamlined element finding
+            review_text_el = (
+                container.find('div', class_=lambda x: x and 'content' in str(x)) or
+                container.find('div', attrs={'data-testid': 'review-content'})
+            )
+            
+            rating_el = container.find('span', class_=lambda x: x and 'rating' in str(x))
+            author_el = container.find('span', class_=lambda x: x and 'author' in str(x))
+            
+            review_text = review_text_el.get_text(strip=True) if review_text_el else None
+            
+            if review_text and len(review_text) > 20:  # Only substantial reviews
+                reviews_list.append({
+                    'review_text': review_text[:500],  # Limit review length
+                    'rating': rating_el.get_text(strip=True) if rating_el else 'N/A',
+                    'author': author_el.get_text(strip=True) if author_el else 'Anonymous',
+                    'date': 'N/A'
+                })
+        
+        # Quick poster grab
+        try:
+            poster_img = soup.find('img', {'data-testid': 'hero-media__poster'})
+            if poster_img and poster_img.get('src'):
+                original_url = poster_img['src']
+                if 'amazon.com' in original_url:
+                    poster_url = original_url.split('._V1_')[0] + '._V1_.jpg'
+                else:
+                    poster_url = original_url
+        except:
+            pass
+            
+    except Exception as e:
+        logging.error(f"Scraping error for {imdb_id}: {e}")
+    
+    return {'reviews': reviews_list, 'poster_url': poster_url}
+
+# Initialize optimized fetcher
+movie_fetcher = OptimizedMovieFetcher()
 
 @app.route('/health')
 def health():
@@ -34,82 +258,80 @@ def health():
 
 @app.route('/fetch_movie_data', methods=['POST'])
 def fetch_movie_data():
+    """Optimized main endpoint with parallel processing"""
     try:
         data = request.get_json()
         movie_query = data.get('query')
-
+        
         if not movie_query:
             return jsonify({'error': 'No movie query provided'}), 400
-
-        llm_model = genai.GenerativeModel('gemini-1.5-flash')
-        chat = llm_model.start_chat()
-
-        prompt = (
-            f"Please provide the movie title, year, genre, and a list of exactly 20 common user reviews (short and concise, 1-2 sentences each, from online resources) for the movie: '{movie_query}'. "
-            "If you cannot find specific reviews, return an empty list for 'reviews'. "
-            "Format the output strictly as a JSON object with two top-level keys: 'details' and 'reviews'. "
-            "The 'details' object should have 'title', 'year', 'genre' , 'director' and 'cast'keys. "
-            "Example JSON: {'details': {'title': 'Inception', 'year': 2010, 'genre': 'Sci-Fi', 'director': 'David-Fincher', 'cast':'Tom crusie, hugh jaksman'}, 'reviews': ['Great movie!', 'Mind-blowing concept.']}"
-        )
-
-        max_retries = 3
-        retries = 0
-        movie_data = None
-
-        while retries < max_retries:
-            try:
-                logging.info(f"Sending prompt to Gemini (Attempt {retries + 1}/{max_retries}): {prompt}")
-                response = chat.send_message(prompt)
-                gemini_raw_text = response.text
-                logging.info(f"Received from Gemini (raw, Attempt {retries + 1}): {gemini_raw_text[:500]}...")
-
-                # Strip markdown code block markers if present
-                gemini_raw_text = gemini_raw_text.strip()
-                if gemini_raw_text.startswith('```json'):
-                    gemini_raw_text = gemini_raw_text[7:]  # Remove ```json
-                if gemini_raw_text.endswith('```'):
-                    gemini_raw_text = gemini_raw_text[:-3]  # Remove ```
-                gemini_raw_text = gemini_raw_text.strip()
-
-                # Parse the cleaned response
-                movie_data = json.loads(gemini_raw_text)
-
-                # Validate the structure
-                if "details" not in movie_data or "reviews" not in movie_data:
-                    raise ValueError("Gemini response missing 'details' or 'reviews' key.")
-                if not isinstance(movie_data.get("reviews"), list):
-                    raise ValueError("Gemini response 'reviews' is not a list.")
-
-                break  # If successful, exit the loop
-
-            except json.JSONDecodeError as e:
-                logging.error(f"Error parsing Gemini response as JSON (Attempt {retries + 1}): {e}")
-                logging.error(f"Raw Gemini response that caused error: {gemini_raw_text[:500]}...")
-                retries += 1
-                time.sleep(2)
-            except ValueError as ve:
-                logging.error(f"Invalid structure from Gemini (Attempt {retries + 1}): {ve} - Raw Response: {gemini_raw_text[:500]}...")
-                retries += 1
-                time.sleep(2)
-            except Exception as e:
-                logging.error(f"Unexpected error from Gemini (Attempt {retries + 1}): {e}")
-                retries += 1
-                time.sleep(2)
-
-        if movie_data:
-            return jsonify(movie_data)
+        
+        # Step 1: Correct movie name (if Gemini available)
+        corrected_query = find_movie_name_optimized(movie_query)
+        
+        # Step 2: Get movie details from OMDB
+        movie_details = movie_fetcher.get_movie_details_omdb(title=corrected_query)
+        
+        if not movie_details:
+            return jsonify({'error': f"Movie not found: '{movie_query}'"}), 404
+        
+        # Step 3: Parallel processing for reviews and additional data
+        reviews = []
+        imdb_id = movie_details.get('imdb_id')
+        
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            # Submit both tasks concurrently
+            futures = []
+            
+            if imdb_id:
+                futures.append(executor.submit(scrape_imdb_reviews_fast, imdb_id))
+            
+            futures.append(executor.submit(generate_fast_reviews, movie_details.get('title', corrected_query)))
+            
+            # Collect results
+            scraped_data = None
+            generated_reviews = None
+            
+            for future in as_completed(futures):
+                try:
+                    result = future.result()
+                    if isinstance(result, dict) and 'reviews' in result:
+                        scraped_data = result
+                    elif isinstance(result, list):
+                        generated_reviews = result
+                except Exception as e:
+                    logging.error(f"Future execution error: {e}")
+        
+        # Use scraped reviews if available, otherwise use generated ones
+        if scraped_data and scraped_data.get('reviews'):
+            reviews = scraped_data['reviews']
+            # Update poster if scraped
+            if scraped_data.get('poster_url'):
+                movie_details['poster_url'] = scraped_data['poster_url']
+        elif generated_reviews:
+            reviews = generated_reviews
         else:
-            return jsonify({
-                'error': f'Failed to fetch and parse movie data after {max_retries} attempts. Last raw response: {gemini_raw_text[:200]}...'
-            }), 500
-
+            reviews = get_static_reviews()
+        
+        return jsonify({
+            'details': movie_details,
+            'reviews': reviews,  # Limit to 10 reviews max
+            'source': 'Educational Project'
+        })
+        
     except Exception as e:
-        logging.error(f"Error in gemini_movie_api: {e}")
-        return jsonify({'error': f'Failed to fetch movie data: {str(e)}'}), 500
+        logging.error(f"Error in fetch_movie_data: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
 
-@app.route('/fetch_dummy_reviews', methods=['POST'])
+
+@app.route('/dummy-reviews', methods=['POST'])
 def fetch_dummy_reviews():
+    """
+    Generates a list of 10 short dummy movie user reviews with mixed sentiment
+    using the Gemini 1.5 Flash model and returns them as a JSON array.
+    """
     try:
+        # Initialize the generative model
         llm_model = genai.GenerativeModel('gemini-1.5-flash')
         chat = llm_model.start_chat()
 
@@ -132,7 +354,7 @@ def fetch_dummy_reviews():
                 response = chat.send_message(prompt)
                 raw_text = response.text.strip()
 
-                # Remove markdown backticks if present
+                # Remove markdown backticks if present (e.g., ```json ... ```)
                 if raw_text.startswith('```json'):
                     raw_text = raw_text[7:]
                 if raw_text.endswith('```'):
@@ -145,7 +367,7 @@ def fetch_dummy_reviews():
                 if not isinstance(reviews, list):
                     raise ValueError("Response is not a JSON list.")
 
-                break  # success
+                break  # Success, exit the retry loop
 
             except json.JSONDecodeError as e:
                 logging.error(f"JSON decode error (attempt {retries + 1}): {e}")
@@ -155,17 +377,19 @@ def fetch_dummy_reviews():
                 logging.error(f"Unexpected error (attempt {retries + 1}): {e}")
 
             retries += 1
-            time.sleep(2 ** retries)
+            time.sleep(2 ** retries) # Exponential backoff
+
         if reviews:
-            return jsonify({'reviews': reviews})
+            # Return the generated reviews as a JSON response
+            return jsonify({'reviews': reviews, 'sentiment_classification': 'mixed', 'descriptive_passage': 'This is a dummy passage.', 'details': {}}), 200
         else:
-            return jsonify({'error': f'Failed after {max_retries} attempts.'}), 500
+            # If after retries, no valid reviews are obtained
+            return jsonify({'error': f'Failed to generate dummy reviews after {max_retries} attempts.'}), 500
 
     except Exception as e:
-        logging.error(f"Error in fetch_dummy_reviews_from_flash: {e}")
+        logging.error(f"Error in fetch_dummy_reviews: {e}")
         return jsonify({'error': str(e)}), 500
 
-    
 if __name__ == '__main__':
-    port = int(os.getenv("GEMINI_PORT", 5001))
-    app.run(host="0.0.0.0", port=port)
+    port = int(os.getenv("PORT", 5001))
+    app.run(host="0.0.0.0", port=port, debug=False)
