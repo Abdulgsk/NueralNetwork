@@ -179,7 +179,7 @@ function MovieAnalyzer() {
     try {
   // Call the predict endpoint with a sample movie name
   const res = await fetch(
-    "https://abdulgousea.pythonanywhere.com//fetch_dummy_reviews", // Ensure this matches your Flask backend port
+    "https://abdul29.pythonanywhere.com/fetch_dummy_reviews", // Ensure this matches your Flask backend port
     {
       method: 'POST',
       mode: 'cors', // Assuming your /dummy-reviews endpoint expects a POST request
