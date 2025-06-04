@@ -18,11 +18,10 @@ load_dotenv()
 
 app = Flask(__name__)
 CORS(app, resources={
-    r"/*": {
-        "origins": "*",  # Allow all origins
-        "methods": ["GET", "POST", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization"],
-        "supports_credentials": True
+    r"/fetch_dummy_reviews": {
+        "origins": ["https://nueral-network-frontend.vercel.app"],
+        "methods": ["POST", "OPTIONS"],  # Explicitly allow OPTIONS
+        "allow_headers": ["Content-Type"]
     }
 })
 # CORS(app, resources={
@@ -548,6 +547,7 @@ def fetch_dummy_reviews():
         reviews = generate_sample_reviews(count)
         return jsonify({'reviews': reviews})
         
+        response.headers.add('Access-Control-Allow-Origin', 'https://nueral-network-frontend.vercel.app')
     except Exception as e:
         logging.error(f"Error generating dummy reviews: {e}")
         return jsonify({'error': str(e)}), 500
