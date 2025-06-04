@@ -20,6 +20,7 @@ load_dotenv()
 
 app = Flask(__name__)
 
+CORS(app)
 # --- Corrected CORS Configuration ---
 # Remove the redundant CORS(app) line. Keep only the specific one.
 CORS(app, resources={r"/*": {"origins": [
