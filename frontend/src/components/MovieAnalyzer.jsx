@@ -2,6 +2,23 @@ import React, { useState } from "react";
 import MovieDetailsCard from "./MovieDetailsCard";
 import MovieReviewsCard from "./MovieReviewsCard";
 
+const movies = [
+  { movie_name: 'The Matrix', genre: 'Sci-Fi' },
+  { movie_name: 'Blade Runner 2049', genre: 'Sci-Fi' },
+  { movie_name: 'Inception', genre: 'Sci-Fi' },
+  { movie_name: 'Pulp Fiction', genre: 'Crime' },
+  { movie_name: 'The Godfather', genre: 'Crime' },
+  { movie_name: 'Goodfellas', genre: 'Crime' },
+  { movie_name: 'The Shawshank Redemption', genre: 'Drama' },
+  { movie_name: 'Forrest Gump', genre: 'Drama' },
+  { movie_name: 'Parasite', genre: 'Drama' },
+  { movie_name: 'Spirited Away', genre: 'Animation' },
+  { movie_name: 'Toy Story', genre: 'Animation' },
+  { movie_name: 'Your Name.', genre: 'Animation' },
+  { movie_name: 'Interstellar', genre: 'Sci-Fi' },
+  { movie_name: 'Whiplash', genre: 'Drama' },
+  { movie_name: 'Fight Club', genre: 'Drama' },
+];
 function MovieAnalyzer() {
   const [reviewText, setReviewText] = useState("");
   const [backendSentiment, setBackendSentiment] = useState(null); // This will store what the backend actually sends
@@ -53,76 +70,87 @@ function MovieAnalyzer() {
   };
   // --- END NEW FUNCTION ---
 
-  const handleSubmit = async () => {
-    setBackendSentiment(null);
-    setFrontendClassification(null); // Reset
-    setDescriptivePassage(null);
-    setMovieDetails(null);
-    setMovieReviews([]);
-    setError(null);
+ const handleSubmit = async (inputForAnalysis) => {
+  setBackendSentiment(null);
+  setFrontendClassification(null);
+  setDescriptivePassage(null);
+  setMovieDetails(null);
+  setMovieReviews([]);
+  setError(null);
 
-    if (!reviewText.trim()) {
-      setError("Please enter a movie review or a movie name.");
-      return;
+  // Better handling of text input
+  const textToProcess = String(
+    inputForAnalysis !== undefined && inputForAnalysis !== null 
+      ? inputForAnalysis 
+      : reviewText || ''
+  ).trim();
+
+  // Add validation for empty input
+  if (!textToProcess) {
+    setError('Please enter some text to analyze');
+    return;
+  }
+
+  console.log('Processing text:', textToProcess); // Debug log
+
+  setLoading(true);
+
+  try {
+    const res = await fetch(
+      "http://127.0.0.1:5000/predict",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: textToProcess }),
+      }
+    );
+
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(
+        errorData.error || "Failed to get sentiment from backend."
+      );
     }
 
-    setLoading(true);
+    const data = await res.json();
+    setBackendSentiment(data.sentiment_classification);
+    setFrontendClassification(
+      mapBackendSentimentToOldClassification(data.sentiment_classification)
+    );
+    setDescriptivePassage(data.descriptive_passage);
 
-    try {
-      const res = await fetch(
-        "https://nueralnetwork-production.up.railway.app/predict", // Ensure this matches your Flask backend port
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: reviewText }),
-        }
-      );
-
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(
-          errorData.error || "Failed to get sentiment from backend."
-        );
-      }
-
-      const data = await res.json();
-      setBackendSentiment(data.sentiment_classification); // Store backend's original classification
-      // Set the frontend display classification based on mapping
-      setFrontendClassification(
-        mapBackendSentimentToOldClassification(data.sentiment_classification)
-      );
-      setDescriptivePassage(data.descriptive_passage);
-
-      if (data.details && Object.keys(data.details).length > 0) {
-        setMovieDetails(data.details);
-      } else {
-        setMovieDetails(null);
-      }
-
-      // Ensure movieReviews is an array of objects with 'review_text'
-      if (
-        data.reviews &&
-        Array.isArray(data.reviews) &&
-        data.reviews.length > 0
-      ) {
-        // If reviews are already objects with review_text, use them directly
-        // Otherwise, assume they are strings and convert to objects
-        const formattedReviews = data.reviews.map((review) =>
-          typeof review === "string"
-            ? { review_text: review, author: "N/A", rating: "N/A", date: "N/A" }
-            : review
-        );
-        setMovieReviews(formattedReviews);
-      } else {
-        setMovieReviews([]);
-      }
-    } catch (err) {
-      console.error("Error during sentiment analysis:", err);
-      setError(`Analysis failed: Enter the exact details or be more specific`);
-    } finally {
-      setLoading(false);
+    if (data.details && Object.keys(data.details).length > 0) {
+      setMovieDetails(data.details);
+    } else {
+      setMovieDetails(null);
     }
-  };
+
+    if (
+      data.reviews &&
+      Array.isArray(data.reviews) &&
+      data.reviews.length > 0
+    ) {
+      const formattedReviews = data.reviews.map((review) =>
+        typeof review === "string"
+          ? { review_text: review, author: "N/A", rating: "N/A", date: "N/A" }
+          : review
+      );
+      setMovieReviews(formattedReviews);
+    } else {
+      setMovieReviews([]);
+    }
+  } catch (err) {
+    console.error("Error during sentiment analysis:", err);
+    setError(`Analysis failed: Enter the exact details or be more specific`);
+  } finally {
+    setLoading(false);
+  }
+};
+
+const handleFormSubmit = (e) => {
+  e.preventDefault();
+  handleSubmit(reviewText); // Explicitly pass the current reviewText value
+};
 
   // --- Sentiment Color and Gradient Mapping using frontendClassification ---
   const getSentimentColor = (classification) => {
@@ -167,69 +195,22 @@ function MovieAnalyzer() {
   // --- End Sentiment Color and Gradient Mapping ---
 
   const handleTryItOut = async () => {
-    setLoadingExample(true);
-    setError(null);
-    // Reset all previous results
-    setBackendSentiment(null);
-    setFrontendClassification(null);
-    setDescriptivePassage(null);
-    setMovieDetails(null);
-    setMovieReviews([]);
+  setLoadingExample(true);
 
-    try {
-  // Call the predict endpoint with a sample movie name
-  const res = await fetch(
-    "https://abdul29.pythonanywhere.com/fetch_dummy_reviews", // Ensure this matches your Flask backend port
-    {
-      method: 'POST',
-      mode: 'cors', // Assuming your /dummy-reviews endpoint expects a POST request
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ movie_name: 'The Matrix' }), // Example movie query
-    }
-  );
+  function getRandomMovie(movieList) {
+    const randomIndex = Math.floor(Math.random() * movieList.length);
+    return movieList[randomIndex];
+  }
 
-  if (!res.ok) {
-    const errorData = await res.json();
-    throw new Error(
-      errorData.error || "Failed to get example sentiment from backend."
-    );
-  }
+  const selectedMovie = getRandomMovie(movies);
+  const movieNameForReview = "#" + selectedMovie.movie_name;
 
- 
-  const data = await res.json();
+  setReviewText(movieNameForReview); // Still update the state for UI display
 
-    // *** ADD THESE LINES TO PROCESS SENTIMENT AND DESCRIPTIVE PASSAGE FROM DUMMY DATA ***
-    setBackendSentiment(data.sentiment_classification);
-    setFrontendClassification(mapBackendSentimentToOldClassification(data.sentiment_classification));
-    setDescriptivePassage(data.descriptive_passage);
-    // You might also want to set movieDetails if the dummy-reviews endpoint provides them
-    if (data.details && Object.keys(data.details).length > 0) {
-        setMovieDetails(data.details);
-    } else {
-        setMovieDetails(null);
-    }
+  await handleSubmit(movieNameForReview); // Pass the new movie name directly
 
-  // Populate the input field with the first review if available
-  if (data.reviews && data.reviews.length > 0) {
-    // Assuming reviews are objects with 'review_text' from backend
-    const formattedReviews = data.reviews.map((review) =>
-        typeof review === "string"
-            ? { review_text: review, author: "N/A", rating: "N/A", date: "N/A" }
-            : review
-    );
-    setMovieReviews(formattedReviews);
-  } else {
-    setReviewText("No online reviews found for this example movie."); // Fallback text
-  }
-} catch (err) {
-  console.error("Error during example sentiment analysis:", err);
-  setError(`Example analysis failed: ${err.message}`);
-} finally {
-  setLoadingExample(false);
-}
-  };
+  setLoadingExample(false);
+};
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
@@ -488,7 +469,7 @@ function MovieAnalyzer() {
             {/* Action Buttons - Responsive layout */}
             <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4">
               <button
-                onClick={handleSubmit}
+                onClick={handleFormSubmit}
                 className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 sm:py-4 rounded-xl sm:rounded-2xl text-lg sm:text-xl font-bold hover:from-blue-700 hover:to-purple-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
                 disabled={loading || loadingExample}
               >

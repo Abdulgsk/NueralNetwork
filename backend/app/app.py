@@ -24,7 +24,7 @@ CORS(app)
 # Updated model loading to handle the improved model format
 try:
     # Try loading the improved model format first
-    improved_model_file = 'sentiment_model_improved.pkl'
+    improved_model_file = 'sentiment_model_v2.pkl'
     if os.path.exists(improved_model_file):
         with open(improved_model_file, 'rb') as f:
             weights, biases, idf_values = pickle.load(f)
@@ -32,7 +32,7 @@ try:
         num_words_vocab = 15000  # Updated to match the improved model
     else:
         # Fallback to enhanced model format
-        enhanced_model_file = 'sentiment_model_v2.pkl'
+        enhanced_model_file = 'sentiment_model_improved.pkl'
         if os.path.exists(enhanced_model_file):
             with open(enhanced_model_file, 'rb') as f:
                 weights, biases, idf_values = pickle.load(f)
