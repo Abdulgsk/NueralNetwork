@@ -97,11 +97,9 @@ function MovieAnalyzer() {
 
   try {
     const res = await fetch(
-      "https://huggingface.co/spaces/Abdul2004/MovieAnalyzer/predict",
+      "https://gentle-dawn-9408.ploomber.app/predict",
       {
         method: "POST",
-        mode: 'cors',
-        credentials: 'include', 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: textToProcess }),
       }
