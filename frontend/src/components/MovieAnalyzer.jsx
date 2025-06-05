@@ -100,6 +100,7 @@ function MovieAnalyzer() {
       "https://huggingface.co/spaces/Abdul2004/MovieAnalyzer/predict",
       {
         method: "POST",
+        mode: 'cors',
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: textToProcess }),
       }
