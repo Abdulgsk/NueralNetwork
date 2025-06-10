@@ -25,17 +25,7 @@ app = Flask(__name__)
 
 # --- IMPROVED CORS Configuration ---
 # More explicit CORS setup that works better with Hugging Face Spaces
-CORS(app, 
-     origins=[
-         "http://localhost:5173",
-         "http://localhost:3000", 
-         "https://nueral-network-frontend.vercel.app",
-         "https://*.vercel.app"
-     ],
-     methods=["GET", "POST", "OPTIONS"],
-     allow_headers=["Content-Type", "Authorization", "Accept", "Origin", "X-Requested-With"],
-     supports_credentials=True
-)
+CORS(app)
 
 # Additional manual CORS headers for better compatibility
 @app.after_request
@@ -104,7 +94,6 @@ else:
 
 # --- API Keys and External Service URLs ---
 GEMINI_API_URL = 'https://abdul29.pythonanywhere.com/fetch_movie_data'
-HUGGING_FACE_PREDICT_URL = "https://huggingface.co/spaces/Abdul2004/MovieAnalyzer/predict"
 
 api_key = os.getenv("GEMINI_API_KEY")
 if api_key:
@@ -237,7 +226,6 @@ def home():
 
 # EXPLICIT OPTIONS HANDLER
 @app.route('/predict', methods=['OPTIONS'])
-@app.route('/proxy-huggingface-predict', methods=['OPTIONS'])
 def handle_options():
     response = jsonify({'status': 'ok'})
     origin = request.headers.get('Origin')
@@ -342,7 +330,7 @@ def predict():
         logging.error(f"Unhandled error in /predict endpoint: {e}", exc_info=True)
         return jsonify({'error': f'Internal server error in local prediction: {str(e)}'}), 500
 
-@app.route('/proxy-huggingface-predict', methods=['POST'])
+@app.route('/predict', methods=['POST'])
 def proxy_huggingface_predict():
     logging.info("Received request for Hugging Face proxy.")
     

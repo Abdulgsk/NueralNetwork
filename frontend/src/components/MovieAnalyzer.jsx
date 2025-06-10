@@ -85,7 +85,7 @@ function MovieAnalyzer() {
       : reviewText || ''
   ).trim();
 
-  const HUGGING_FACE_SPACE_URL = "https://huggingface.co/spaces/Abdul2004/MovieAnalyzer"; 
+  const HUGGING_FACE_SPACE_URL = "https://nueralnetwork-lnes.onrender.com"; 
   // Add validation for empty input
   if (!textToProcess) {
     setError('Please enter some text to analyze');
@@ -98,7 +98,7 @@ function MovieAnalyzer() {
 
   try {
     const res = await fetch(
-      `${HUGGING_FACE_SPACE_URL}/proxy-huggingface-predict`,
+      `${HUGGING_FACE_SPACE_URL}/predict`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
