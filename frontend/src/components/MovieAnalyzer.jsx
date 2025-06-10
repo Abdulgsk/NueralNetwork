@@ -85,6 +85,7 @@ function MovieAnalyzer() {
       : reviewText || ''
   ).trim();
 
+  const HUGGING_FACE_SPACE_URL = "https://huggingface.co/spaces/Abdul2004/MovieAnalyzer"; 
   // Add validation for empty input
   if (!textToProcess) {
     setError('Please enter some text to analyze');
@@ -97,7 +98,7 @@ function MovieAnalyzer() {
 
   try {
     const res = await fetch(
-      "https://huggingface.co/spaces/Abdul2004/MovieAnalyzer/predict",
+      `${HUGGING_FACE_SPACE_URL}/proxy-huggingface-predict`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
