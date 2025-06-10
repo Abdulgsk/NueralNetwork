@@ -1,0 +1,27 @@
+Flask==3.0.3
+flask-cors==6.0.0
+gunicorn==20.1.0
+
+# Machine Learning - Latest stable versions
+tensorflow==2.17.1
+numpy==1.26.4
+scikit-learn==1.5.1
+
+# Google Generative AI (Gemini)
+google-generativeai==0.8.2
+
+# HTTP requests
+requests==2.32.3
+
+# Environment variables
+python-dotenv==1.0.1
+
+# Web scraping
+beautifulsoup4==4.12.3
+
+# Scientific computing
+scipy==1.13.1
+
+# Additional dependencies will be auto-resolved by pip
+fastapi
+uvicorn
